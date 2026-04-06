@@ -604,50 +604,49 @@ function setSyncStatus(state, text) {
 // HIS Parser
 // ══════════════════════════════════════════════
 function parseHIS(txt) {
-  // 先把換行的續行合併：如果某行開頭不是數字，就接到上一行
-  var rawLines = txt.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
-  var mergedLines = [];
-  rawLines.forEach(function(line) {
-    var firstToken = line.split(/\t+|\s{2,}/)[0];
-    if (!isNaN(parseInt(firstToken)) && parseInt(firstToken) > 0) {
-      mergedLines.push(line);
-    } else if (mergedLines.length > 0) {
-      mergedLines[mergedLines.length - 1] += '  ' + line;
-    }
-  });
+  // 正規化：把所有換行和多餘空白合成單行，再用序號切割每筆記錄
+  var flat = txt.replace(/\n/g, '  ').replace(/\r/g, '').replace(/\t/g, '  ');
 
+  // 用「數字 + 2格空白 + 科別代碼」切割每筆
+  var parts = flat.split(/(?=\b\d+\s{2,}(?:HMED|MED|SURG)\b)/);
   var results = [];
-  mergedLines.forEach(function(line) {
-    var c = line.split(/\t+|\s{2,}/).map(function(s){ return s.trim(); }).filter(Boolean);
+
+  parts.forEach(function(part) {
+    part = part.trim();
+    if (!part) return;
+
+    var c = part.split(/\s{2,}/).map(function(s){ return s.trim(); }).filter(Boolean);
     if (!c[0] || isNaN(parseInt(c[0]))) return;
-    var pid = c[4] || '';
+
+    // 有床位：c = [#, 科別, 檢傷, 床位, 病歷號, 姓名, 性別, 出生日期, 年齡, 動向, 掛號時間, ...]
+    // 無床位：c = [#, 科別, 檢傷, 病歷號, 姓名, 性別, 出生日期, 年齡, 動向, 掛號時間, ...]
+    var hasBed = /^[A-Za-z]\d/.test(c[3]);  // 床位格式如 H02, B06A
+
+    var triage  = c[2] || '';
+    var bed     = hasBed ? c[3] : '';
+    var pid     = hasBed ? c[4] : c[3];
+    var name    = hasBed ? (c[5]||'') : (c[4]||'');
+    var dob     = hasBed ? c[7] : c[6];
+    var age     = hasBed ? c[8] : c[7];
+    var regDate = hasBed ? c[10] : c[9];
+
     if (!pid || !/^[YyA-Za-z]/.test(pid)) return;
-    // 診別可能在 c[12] 或 c[13] 取決於是否有床位
+
+    // 院區：找含「虎尾」或「斗六」的 token
     var dept = '';
-    for (var i = 10; i < c.length; i++) {
-      if (c[i].indexOf('診') >= 0) { dept = c[i]; break; }
+    for (var i = 0; i < c.length; i++) {
+      if (c[i].indexOf('虎尾') >= 0 || c[i].indexOf('斗六') >= 0) { dept = c[i]; break; }
     }
     var cp = dept.indexOf('虎尾') >= 0 ? 'hw' : 'dl';
-    // 掛號時間：找 yyyy/mm/dd hh:mm 格式
-    var regDate = '';
-    for (var j = 0; j < c.length; j++) {
-      if (/^\d{4}\/\d{2}\/\d{2}$/.test(c[j]) && j+1 < c.length && /^\d{1,2}:\d{2}$/.test(c[j+1])) {
-        regDate = c[j] + ' ' + c[j+1];
-        break;
-      }
-      if (/^\d{4}\/\d{2}\/\d{2}\s+\d{1,2}:\d{2}$/.test(c[j])) {
-        regDate = c[j];
-        break;
-      }
-    }
+
     results.push({
       pid:       pid,
-      name:      (c[5] || '').replace(/\s+/g, ''),
-      dob:       c[7] || '',
-      age:       c[8] || '',
-      triage:    c[2] || '',
-      bed:       c[3] || '',
-      regDate:   regDate,
+      name:      name.replace(/\s+/g, ''),
+      dob:       dob || '',
+      age:       age || '',
+      triage:    triage,
+      bed:       bed,
+      regDate:   regDate || '',
       campus:    cp,
       dx:        [],
       dxCustom:  '',
