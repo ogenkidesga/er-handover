@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>急診交班單</title>
+<style>
+/* ── 字型 ── */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg:       #f5f4f0;
+  --surface:  #ffffff;
+  --border:   #e2e0d8;
+  --border2:  #ccc9be;
+  --text:     #1a1916;
+  --muted:    #7a7769;
+  --hint:     #b0ad9f;
+  --blue-bg:  #e8f0fb;
+  --blue:     #1a56b0;
+  --blue-b:   #adc4ef;
+  --green-bg: #e6f4ec;
+  --green:    #1a7a3c;
+  --green-b:  #93d4a8;
+  --amber-bg: #fdf3e0;
+  --amber:    #a05c00;
+  --amber-b:  #f0c870;
+  --red-bg:   #fdecea;
+  --red:      #b91c1c;
+  --t1-bg:    #b91c1c;
+  --t1-text:  #fff;
+  --t2-bg:    #d97706;
+  --t2-text:  #fff;
+  --t3-bg:    #4a7c2f;
+  --t3-text:  #fff;
+  --font: 'Noto Sans TC', sans-serif;
+  --mono: 'IBM Plex Mono', monospace;
+  --radius: 8px;
+  --radius-lg: 12px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* ── Layout ── */
+.header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-left { display: flex; align-items: center; gap: 14px; }
+.logo { font-size: 15px; font-weight: 600; color: var(--text); letter-spacing: -0.01em; }
+.logo span { color: var(--blue); }
+
+.sync-status {
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.sync-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--hint);
+}
+.sync-dot.ok { background: #22c55e; }
+.sync-dot.saving { background: var(--amber); animation: pulse 1s infinite; }
+.sync-dot.err { background: var(--red); }
+
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+.campus-tabs { display: flex; gap: 4px; }
+.ctab {
+  font-family: var(--font);
+  font-size: 12px;
+  padding: 4px 12px;
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--muted);
+  transition: all .15s;
+}
+.ctab:hover { border-color: var(--blue); color: var(--blue); }
+.ctab.a-all { background: var(--text); color: #fff; border-color: var(--text); font-weight: 500; }
+.ctab.a-dl  { background: var(--blue-bg); color: var(--blue); border-color: var(--blue-b); font-weight: 500; }
+.ctab.a-hw  { background: var(--green-bg); color: var(--green); border-color: var(--green-b); font-weight: 500; }
+
+.main { padding: 16px 20px; }
+
+/* ── Toolbar ── */
+.toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.btn {
+  font-family: var(--font);
+  font-size: 12px;
+  padding: 6px 14px;
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  cursor: pointer;
+  background: var(--surface);
+  color: var(--text);
+  transition: all .15s;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--bg); border-color: var(--blue); color: var(--blue); }
+.btn-primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+.btn-primary:hover { background: #1447a0; border-color: #1447a0; color: #fff; }
+.btn-ghost { background: transparent; border-color: var(--border); color: var(--muted); }
+.btn-ghost:hover { background: var(--bg); border-color: var(--border2); color: var(--text); }
+.btn-danger { color: var(--red); border-color: #f5c0bc; }
+.btn-danger:hover { background: var(--red-bg); border-color: var(--red); color: var(--red); }
+
+/* Sort controls */
+.sort-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  align-items: center;
+}
+.sort-label { font-size: 11px; color: var(--muted); }
+.sort-btn {
+  font-family: var(--font);
+  font-size: 11px;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--muted);
+  transition: all .15s;
+}
+.sort-btn:hover { border-color: var(--border2); color: var(--text); }
+.sort-btn.on { background: var(--surface); color: var(--text); border-color: var(--border2); font-weight: 500; }
+
+/* ── Table ── */
+.tbl-wrap { overflow-x: auto; border-radius: var(--radius-lg); border: 1px solid var(--border); background: var(--surface); }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+thead tr { border-bottom: 1px solid var(--border); }
+th {
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  background: var(--bg);
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #fafaf8; }
+
+/* col widths */
+.c-num   { width: 32px; }
+.c-tri   { width: 40px; }
+.c-bed   { width: 66px; }
+.c-pid   { width: 84px; }
+.c-name  { width: 76px; }
+.c-dob   { width: 88px; }
+.c-age   { width: 32px; }
+.c-reg   { width: 136px; }
+.c-cp    { width: 40px; }
+.c-dx    { width: 210px; }
+.c-dir   { width: 148px; }
+/* note: auto */
+
+/* Triage badges */
+.tri {
+  display: inline-flex;
+  align-items: center; justify-content: center;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  font-size: 12px; font-weight: 600;
+}
+.tri-1 { background: var(--t1-bg); color: var(--t1-text); }
+.tri-2 { background: var(--t2-bg); color: var(--t2-text); }
+.tri-3 { background: var(--t3-bg); color: var(--t3-text); }
+
+/* Bed badge */
+.bed-tag {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--blue-bg);
+  color: var(--blue);
+  border: 1px solid var(--blue-b);
+}
+.no-bed { color: var(--hint); font-size: 11px; }
+
+/* Campus */
+.cp-dl { font-size: 11px; color: var(--blue); font-weight: 500; }
+.cp-hw { font-size: 11px; color: var(--green); font-weight: 500; }
+
+/* Dx chips */
+.chips { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; }
+.chip {
+  font-family: var(--font);
+  font-size: 11px;
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--muted);
+  transition: all .12s;
+  white-space: nowrap;
+}
+.chip:hover { border-color: var(--blue-b); color: var(--blue); }
+.chip.on { background: var(--blue-bg); color: var(--blue); border-color: var(--blue-b); font-weight: 500; }
+.dx-other {
+  font-family: var(--font);
+  font-size: 11px;
+  width: 80px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2px 6px;
+  background: transparent;
+  color: var(--text);
+  outline: none;
+  transition: border-color .15s;
+}
+.dx-other:focus { border-color: var(--blue); }
+.dx-other::placeholder { color: var(--hint); }
+
+/* Direction chips */
+.dir-chips { display: flex; flex-wrap: wrap; gap: 3px; }
+.dir-chip {
+  font-family: var(--font);
+  font-size: 11px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--muted);
+  transition: all .12s;
+  white-space: nowrap;
+}
+.dir-chip:hover { border-color: var(--border2); color: var(--text); }
+.dir-chip.on-adm { background: var(--green-bg); color: var(--green); border-color: var(--green-b); font-weight: 500; }
+.dir-chip.on-con { background: var(--blue-bg);  color: var(--blue);  border-color: var(--blue-b);  font-weight: 500; }
+.dir-chip.on-obs { background: var(--amber-bg); color: var(--amber); border-color: var(--amber-b); font-weight: 500; }
+
+/* Note input */
+.note-inp {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--text);
+  outline: none;
+  resize: none;
+  line-height: 1.5;
+  padding: 0;
+}
+.note-inp::placeholder { color: var(--hint); }
+
+/* Empty */
+.empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--muted);
+}
+.empty-icon { font-size: 32px; margin-bottom: 8px; opacity: .4; }
+.empty p { font-size: 14px; }
+.empty small { font-size: 12px; color: var(--hint); }
+
+/* ── Modal ── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.35);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  padding: 20px;
+  width: 100%;
+  max-width: 580px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.modal-title { font-size: 15px; font-weight: 600; }
+.modal-close {
+  width: 28px; height: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-close:hover { background: var(--bg); }
+
+.hint-box {
+  background: var(--blue-bg);
+  border: 1px solid var(--blue-b);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-size: 11px;
+  color: var(--blue);
+  line-height: 1.7;
+  margin-bottom: 10px;
+}
+
+.paste-area {
+  border: 1.5px dashed var(--border2);
+  border-radius: var(--radius);
+  padding: 10px;
+  margin-bottom: 10px;
+}
+.paste-area textarea {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text);
+  resize: vertical;
+  min-height: 200px;
+  outline: none;
+  line-height: 1.7;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.modal-footer-right { display: flex; gap: 6px; align-items: center; }
+.chk-label {
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+/* ── Print ── */
+.print-modal { max-width: 740px; }
+#print-content { font-size: 11px; }
+.print-header { margin-bottom: 8px; }
+.print-header h2 { font-size: 14px; font-weight: 600; }
+.print-header p { font-size: 11px; color: var(--muted); }
+.ptbl { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+.ptbl th, .ptbl td {
+  border: 1px solid #ccc;
+  padding: 4px 6px;
+  text-align: left;
+  vertical-align: top;
+}
+.ptbl th { background: #f0efe9; font-weight: 500; }
+
+/* ── API config notice ── */
+.api-notice {
+  background: var(--amber-bg);
+  border: 1px solid var(--amber-b);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 11px;
+  color: var(--amber);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.api-notice a { color: var(--amber); }
+
+@media print {
+  .header, .toolbar, .sort-row, .modal-overlay { display: none !important; }
+  body { background: white; }
+  .tbl-wrap { border: none; border-radius: 0; }
+  table { font-size: 9.5px; }
+  td, th { font-size: 9px !important; padding: 3px 5px !important; }
+  @page { size: A4 portrait; margin: 12mm 14mm; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══ HEADER ══ -->
+<div class="header">
+  <div class="header-left">
+    <div class="logo">急診<span>交班單</span></div>
+    <div class="sync-status">
+      <div class="sync-dot" id="sync-dot"></div>
+      <span id="sync-text">未連線</span>
+    </div>
+  </div>
+  <div class="campus-tabs">
+    <button class="ctab a-all" id="tab-all" onclick="setCampus('all')">全部</button>
+    <button class="ctab" id="tab-dl"  onclick="setCampus('dl')">斗六</button>
+    <button class="ctab" id="tab-hw"  onclick="setCampus('hw')">虎尾</button>
+  </div>
+</div>
+
+<!-- ══ MAIN ══ -->
+<div class="main">
+
+  <!-- API 未設定提示 -->
+  <div class="api-notice" id="api-notice" style="display:none">
+    ⚠ 尚未設定 Google Sheets API 網址。請在此頁面 HTML 原始碼中設定 <code>API_URL</code> 變數，或點
+    <button class="btn btn-ghost" style="padding:2px 8px;font-size:11px" onclick="promptApiUrl()">設定網址</button>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn btn-primary" onclick="openImport()">貼上 HIS 資料</button>
+    <button class="btn" onclick="exportToSheets()" id="btn-export">匯出到 Sheets 列印</button>
+    <button class="btn btn-ghost" onclick="reloadFromSheets()" title="從 Google Sheets 重新載入">↻ 重新整理</button>
+    <button class="btn btn-danger" onclick="clearAll()">清除全部</button>
+    <span id="last-sync" style="font-size:11px;color:var(--hint);margin-left:4px"></span>
+  </div>
+
+  <div class="sort-row">
+    <span class="sort-label">排序：</span>
+    <button class="sort-btn on" id="s-time-asc"  onclick="setSort('time-asc')">掛號 ↑ 早→晚</button>
+    <button class="sort-btn"    id="s-time-desc" onclick="setSort('time-desc')">掛號 ↓ 晚→早</button>
+    <button class="sort-btn"    id="s-bed"       onclick="setSort('bed')">床位順序</button>
+  </div>
+
+  <!-- Table -->
+  <div class="tbl-wrap" id="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="c-num">#</th>
+          <th class="c-tri">檢傷</th>
+          <th class="c-bed">床位</th>
+          <th class="c-pid">病歷號</th>
+          <th class="c-name">姓名</th>
+          <th class="c-age">歲</th>
+          <th class="c-reg">掛號時間</th>
+          <th class="c-dx">診斷</th>
+          <th class="c-dir">動向</th>
+          <th>注意事項</th>
+        </tr>
+      </thead>
+      <tbody id="ptbody"></tbody>
+    </table>
+  </div>
+
+  <!-- Empty state -->
+  <div class="empty" id="empty-state">
+    <div class="empty-icon">📋</div>
+    <p>尚無資料</p>
+    <small>點「貼上 HIS 資料」開始使用</small>
+  </div>
+
+</div>
+
+<!-- ══ IMPORT MODAL ══ -->
+<div class="modal-overlay" id="import-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">貼上 HIS 病人清單</div>
+      <button class="modal-close" onclick="closeModal('import-modal')">✕</button>
+    </div>
+    <div class="hint-box">
+      從 HIS 網頁全選病人列表（含標題列），Ctrl+C 後直接貼到下方。<br>
+      系統自動解析：檢傷、床位、病歷號、姓名、出生日期、年齡、掛號時間。<br>
+      院區依「診別」欄（斗六 / 虎尾）自動判斷。貼上後會自動從資料庫帶入已有的診斷/動向/注意事項。
+    </div>
+    <div class="paste-area">
+      <textarea id="import-txt" placeholder="貼上 HIS 複製內容於此..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <span id="parse-msg" style="font-size:11px;color:var(--muted)"></span>
+      <div class="modal-footer-right">
+        <label class="chk-label">
+          <input type="checkbox" id="chk-replace"> 取代現有資料
+        </label>
+        <button class="btn btn-ghost" onclick="closeModal('import-modal')">取消</button>
+        <button class="btn btn-primary" onclick="doImport()">匯入</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+// ══════════════════════════════════════════════
+// 設定區 — 部署 Apps Script 後將網址貼到這裡
+// ══════════════════════════════════════════════
+var API_URL = 'https://script.google.com/macros/s/AKfycbzY44WpoN7z9e94FjqwrzVb3ZvoEkQHtsLqYxZZQR0azu4KX3E47yt-cYlNXhAkfMU/exec';
+
+// ══════════════════════════════════════════════
+// 常數
+// ══════════════════════════════════════════════
+var DX_OPTS = ['Pneumonia','UTI','Cellulitis','Ileus','COPD','CHF'];
+var DIR_OPTS = [
+  { key:'adm', label:'Admission', cls:'on-adm' },
+  { key:'con', label:'等照會',    cls:'on-con' },
+  { key:'obs', label:'留觀',      cls:'on-obs' }
+];
+
+// ══════════════════════════════════════════════
+// State
+// ══════════════════════════════════════════════
+var patients  = [];
+var curCampus = 'all';
+var curSort   = 'time-asc';
+var autoTimer = null;
+var saveQueue = {};   // pid -> timeout handle (debounce)
+
+// ══════════════════════════════════════════════
+// 初始化
+// ══════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', function() {
+  if (!API_URL) {
+    document.getElementById('api-notice').style.display = 'flex';
+    setSyncStatus('err', '未設定 API');
+  } else {
+    setSyncStatus('ok', '已連線');
+    startAutoRefresh();
+  }
+  render();
+});
+
+function promptApiUrl() {
+  var url = prompt('請輸入 Google Apps Script 部署網址：');
+  if (url && url.startsWith('https://')) {
+    API_URL = url;
+    document.getElementById('api-notice').style.display = 'none';
+    setSyncStatus('ok', '已連線');
+    startAutoRefresh();
+  }
+}
+
+// ══════════════════════════════════════════════
+// Auto refresh (每 90 秒)
+// ══════════════════════════════════════════════
+function startAutoRefresh() {
+  if (autoTimer) clearInterval(autoTimer);
+  autoTimer = setInterval(function() {
+    if (patients.length > 0) reloadFromSheets();
+  }, 90000);
+}
+
+// ══════════════════════════════════════════════
+// Sync status
+// ══════════════════════════════════════════════
+function setSyncStatus(state, text) {
+  var dot  = document.getElementById('sync-dot');
+  var span = document.getElementById('sync-text');
+  dot.className = 'sync-dot ' + state;
+  span.textContent = text;
+}
+
+// ══════════════════════════════════════════════
+// HIS Parser
+// ══════════════════════════════════════════════
+function parseHIS(txt) {
+  var lines = txt.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
+  var results = [];
+  lines.forEach(function(line) {
+    var c = line.split(/\t+|\s{2,}/).map(function(s){ return s.trim(); }).filter(Boolean);
+    if (!c[0] || isNaN(parseInt(c[0]))) return;  // skip header / non-data
+    var pid = c[4] || '';
+    if (!pid || !/^[YyA-Za-z]/.test(pid)) return;
+    var dept = c[12] || '';
+    var cp = dept.indexOf('虎尾') >= 0 ? 'hw' : 'dl';
+    results.push({
+      pid:      pid,
+      name:     (c[5] || '').replace(/\s+/g, ''),
+      dob:      c[7] || '',
+      age:      c[8] || '',
+      triage:   c[2] || '',
+      bed:      c[3] || '',
+      regDate:  c[10] || '',
+      campus:   cp,
+      dx:       [],
+      dxCustom: '',
+      direction:'',
+      note:     ''
+    });
+  });
+  return results;
+}
+
+// ══════════════════════════════════════════════
+// Import
+// ══════════════════════════════════════════════
+function openImport() {
+  document.getElementById('import-txt').value = '';
+  document.getElementById('parse-msg').textContent = '';
+  openModal('import-modal');
+}
+
+function doImport() {
+  var txt = document.getElementById('import-txt').value;
+  var parsed = parseHIS(txt);
+  if (!parsed.length) {
+    document.getElementById('parse-msg').textContent = '無法解析，請確認格式';
+    return;
+  }
+
+  var replace = document.getElementById('chk-replace').checked;
+
+  if (replace) {
+    patients = parsed;
+  } else {
+    var map = {};
+    patients.forEach(function(p, i){ map[p.pid] = i; });
+    parsed.forEach(function(p) {
+      if (map[p.pid] !== undefined) {
+        // 更新 HIS 欄位，保留手動輸入
+        var ei = map[p.pid];
+        patients[ei].triage  = p.triage;
+        patients[ei].bed     = p.bed;
+        patients[ei].regDate = p.regDate;
+        patients[ei].dob     = p.dob;
+        patients[ei].age     = p.age;
+        patients[ei].name    = p.name;
+        patients[ei].campus  = p.campus;
+      } else {
+        patients.push(p);
+      }
+    });
+  }
+
+  closeModal('import-modal');
+
+  // 向 Sheets 查詢已有資料
+  if (API_URL) {
+    fetchFromSheets(parsed.map(function(p){ return p.pid; }));
+  } else {
+    render();
+  }
+}
+
+// ══════════════════════════════════════════════
+// Google Sheets API
+// ══════════════════════════════════════════════
+// JSONP 通用呼叫（完全避開 CORS）
+function jsonp(url, callback) {
+  var cbName = 'cb_' + Date.now() + '_' + Math.floor(Math.random()*10000);
+  window[cbName] = function(data) {
+    delete window[cbName];
+    document.head.removeChild(script);
+    callback(null, data);
+  };
+  var script = document.createElement('script');
+  script.onerror = function() {
+    delete window[cbName];
+    document.head.removeChild(script);
+    callback(new Error('網路錯誤'));
+  };
+  script.src = url + '&callback=' + cbName;
+  document.head.appendChild(script);
+}
+
+function fetchFromSheets(pids) {
+  if (!API_URL || !pids.length) { render(); return; }
+  setSyncStatus('saving', '載入中...');
+  var url = API_URL + '?action=getByPids&pids=' + encodeURIComponent(JSON.stringify(pids));
+  jsonp(url, function(err, data) {
+    if (!err && data.ok && data.records) {
+      patients.forEach(function(p) {
+        var rec = data.records[p.pid];
+        if (rec) {
+          p.dx        = rec.dx        || [];
+          p.dxCustom  = rec.dxCustom  || '';
+          p.direction = rec.direction || '';
+          p.note      = rec.note      || '';
+        }
+      });
+      setSyncStatus('ok', '已同步 ' + now());
+    } else {
+      setSyncStatus('err', '載入失敗');
+    }
+    render();
+  });
+}
+
+function reloadFromSheets() {
+  if (!API_URL || !patients.length) return;
+  fetchFromSheets(patients.map(function(p){ return p.pid; }));
+  document.getElementById('last-sync').textContent = '重新整理中...';
+}
+
+function saveToSheets(pid) {
+  if (!API_URL) return;
+  if (saveQueue[pid]) clearTimeout(saveQueue[pid]);
+  saveQueue[pid] = setTimeout(function() {
+    delete saveQueue[pid];
+    var p = patients.find(function(x){ return x.pid === pid; });
+    if (!p) return;
+    setSyncStatus('saving', '儲存中...');
+    var record = {
+      pid:       p.pid,
+      name:      p.name,
+      dx:        p.dx,
+      dxCustom:  p.dxCustom,
+      direction: p.direction,
+      note:      p.note
+    };
+    var url = API_URL + '?action=upsert&record=' + encodeURIComponent(JSON.stringify(record));
+    jsonp(url, function(err, data) {
+      if (!err && data.ok) setSyncStatus('ok', '已儲存 ' + now());
+      else setSyncStatus('err', '儲存失敗');
+    });
+  }, 800);
+}
+
+// ══════════════════════════════════════════════
+// Sorting
+// ══════════════════════════════════════════════
+function bedSortKey(bed) {
+  if (!bed) return 'ZZZZ';  // no bed → last
+  var m = bed.match(/^([A-Za-z]+)(\d+)(A?)$/);
+  if (!m) return bed;
+  var letter = m[1].toUpperCase();
+  var num    = parseInt(m[2]);
+  var suffix = m[3] ? 1 : 0;
+  return letter + String(num).padStart(4,'0') + suffix;
+}
+
+function getSorted() {
+  var list = patients.filter(function(p){
+    return curCampus === 'all' || p.campus === curCampus;
+  });
+  if (curSort === 'time-asc') {
+    list.sort(function(a,b){ return (a.regDate||'').localeCompare(b.regDate||''); });
+  } else if (curSort === 'time-desc') {
+    list.sort(function(a,b){ return (b.regDate||'').localeCompare(a.regDate||''); });
+  } else if (curSort === 'bed') {
+    list.sort(function(a,b){ return bedSortKey(a.bed).localeCompare(bedSortKey(b.bed)); });
+  }
+  return list;
+}
+
+function setSort(s) {
+  curSort = s;
+  ['time-asc','time-desc','bed'].forEach(function(k){
+    document.getElementById('s-'+k).className = 'sort-btn' + (k===s?' on':'');
+  });
+  render();
+}
+
+// ══════════════════════════════════════════════
+// Campus
+// ══════════════════════════════════════════════
+function setCampus(c) {
+  curCampus = c;
+  ['all','dl','hw'].forEach(function(k){
+    var el = document.getElementById('tab-'+k);
+    el.className = 'ctab' + (k===c ? ' a-'+c : '');
+  });
+  render();
+}
+
+// ══════════════════════════════════════════════
+// Render
+// ══════════════════════════════════════════════
+function render() {
+  var list = getSorted();
+  var empty = document.getElementById('empty-state');
+  var tbl   = document.getElementById('tbl-wrap');
+
+  if (!patients.length) {
+    empty.style.display = 'block';
+    tbl.style.display   = 'none';
+    document.getElementById('ptbody').innerHTML = '';
+    return;
+  }
+  empty.style.display = 'none';
+  tbl.style.display   = 'block';
+
+  var html = '';
+  list.forEach(function(p, i) {
+    var gi  = patients.indexOf(p);
+    var tc  = p.triage === '1' ? 'tri-1' : p.triage === '2' ? 'tri-2' : 'tri-3';
+    var bedH = p.bed
+      ? '<span class="bed-tag">' + p.bed + '</span>'
+      : '<span class="no-bed">—</span>';
+    var cpH = p.campus === 'hw'
+      ? '<span class="cp-hw">虎尾</span>'
+      : '<span class="cp-dl">斗六</span>';
+
+    // dx
+    var dxH = '<div class="chips">';
+    DX_OPTS.forEach(function(dx) {
+      var on = p.dx.indexOf(dx) >= 0;
+      dxH += '<button class="chip' + (on ? ' on' : '') + '" onclick="toggleDx(' + gi + ',\'' + dx + '\')">' + dx + '</button>';
+    });
+    dxH += '<input class="dx-other" placeholder="其他..." value="' + esc(p.dxCustom) + '" onchange="setDxCustom(' + gi + ',this.value)" title="自行輸入診斷">';
+    dxH += '</div>';
+
+    // direction
+    var dirH = '<div class="dir-chips">';
+    DIR_OPTS.forEach(function(d) {
+      var on = p.direction === d.key;
+      dirH += '<button class="dir-chip' + (on ? ' ' + d.cls : '') + '" onclick="setDir(' + gi + ',\'' + d.key + '\')">' + d.label + '</button>';
+    });
+    dirH += '</div>';
+
+    html += '<tr>';
+    html += '<td class="c-num" style="color:var(--hint);font-size:11px">' + (i+1) + '</td>';
+    html += '<td class="c-tri"><span class="tri ' + tc + '">' + (p.triage||'?') + '</span></td>';
+    html += '<td class="c-bed">' + bedH + '</td>';
+    html += '<td class="c-pid" style="font-family:var(--mono);font-size:11px">' + p.pid + '</td>';
+    html += '<td class="c-name" style="font-weight:500">' + p.name + '</td>';
+    html += '<td class="c-age" style="font-size:12px">' + p.age + '</td>';
+    html += '<td class="c-reg" style="font-family:var(--mono);font-size:11px;white-space:nowrap">' + p.regDate + '</td>';
+    html += '<td class="c-dx">' + dxH + '</td>';
+    html += '<td class="c-dir">' + dirH + '</td>';
+    html += '<td><textarea class="note-inp" rows="2" data-gi="' + gi + '" placeholder="注意事項...">' + esc(p.note) + '</textarea></td>';
+    html += '</tr>';
+  });
+
+  document.getElementById('ptbody').innerHTML = html;
+
+  document.querySelectorAll('textarea.note-inp').forEach(function(el) {
+    el.addEventListener('input', function() {
+      var gi = parseInt(this.getAttribute('data-gi'));
+      patients[gi].note = this.value;
+      saveToSheets(patients[gi].pid);
+    });
+  });
+}
+
+// ══════════════════════════════════════════════
+// Patient data mutations
+// ══════════════════════════════════════════════
+function toggleDx(gi, dx) {
+  var p = patients[gi];
+  var idx = p.dx.indexOf(dx);
+  if (idx >= 0) p.dx.splice(idx,1); else p.dx.push(dx);
+  saveToSheets(p.pid);
+  render();
+}
+
+function setDxCustom(gi, val) {
+  patients[gi].dxCustom = val;
+  saveToSheets(patients[gi].pid);
+}
+
+function setDir(gi, key) {
+  var p = patients[gi];
+  p.direction = p.direction === key ? '' : key;
+  saveToSheets(p.pid);
+  render();
+}
+
+function clearAll() {
+  if (confirm('確定清除所有病人資料？')) {
+    patients = [];
+    render();
+  }
+}
+
+// ══════════════════════════════════════════════
+// Print
+// ══════════════════════════════════════════════
+function exportToSheets() {
+  if (!API_URL) { alert('尚未設定 API 網址'); return; }
+  if (!patients.length) { alert('目前沒有資料'); return; }
+
+  var btn = document.getElementById('btn-export');
+  btn.textContent = '匯出中...';
+  btn.disabled = true;
+
+  var list     = getSorted();
+  var dirLabel = { adm:'Admission', con:'等照會', obs:'留觀' };
+  var cpLabel  = curCampus==='dl'?'斗六院區':curCampus==='hw'?'虎尾院區':'全院區';
+  var title    = '急診交班單 — ' + cpLabel;
+
+  var rows = list.map(function(p) {
+    var dxStr = p.dx.join(', ') + (p.dxCustom ? (p.dx.length?', ':'')+p.dxCustom : '');
+    return {
+      triage:    p.triage    || '',
+      bed:       p.bed       || '',
+      pid:       p.pid       || '',
+      name:      p.name      || '',
+      age:       p.age       || '',
+      regDate:   p.regDate   || '',
+      dx:        dxStr,
+      direction: dirLabel[p.direction] || '',
+      note:      p.note      || ''
+    };
+  });
+
+  var url = API_URL
+    + '?action=exportPrint'
+    + '&title='  + encodeURIComponent(title)
+    + '&rows='   + encodeURIComponent(JSON.stringify(rows));
+
+  // 先開視窗（必須在使用者點擊事件內同步執行，否則被瀏覽器封鎖）
+  var newWin = window.open('', '_blank');
+  if (newWin) newWin.document.write('<p style="font-family:sans-serif;padding:2rem">匯出中，請稍候...</p>');
+
+  jsonp(url, function(err, data) {
+    btn.textContent = '匯出到 Sheets 列印';
+    btn.disabled = false;
+    if (!err && data.ok && data.url) {
+      if (newWin) {
+        newWin.location.href = data.url;
+      } else {
+        alert('請允許彈出視窗，或手動前往：
+' + data.url);
+      }
+    } else {
+      if (newWin) newWin.close();
+      alert('匯出失敗，請確認 API 網址是否正確');
+    }
+  });
+}
+
+// ══════════════════════════════════════════════
+// Modal helpers
+// ══════════════════════════════════════════════
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+// ══════════════════════════════════════════════
+// Utils
+// ══════════════════════════════════════════════
+function esc(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function now() {
+  var d = new Date();
+  return d.getHours() + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+</script>
+</body>
+</html>
