@@ -950,8 +950,7 @@ function exportToSheets() {
       if (newWin) {
         newWin.location.href = data.url;
       } else {
-        alert('請允許彈出視窗，或手動前往：
-' + data.url);
+        alert('請允許彈出視窗，或手動前往：\n' + data.url);
       }
     } else {
       if (newWin) newWin.close();
