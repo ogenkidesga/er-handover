@@ -620,7 +620,7 @@ function parseHIS(txt) {
 
     // 有床位：c = [#, 科別, 檢傷, 床位, 病歷號, 姓名, 性別, 出生日期, 年齡, 動向, 掛號時間, ...]
     // 無床位：c = [#, 科別, 檢傷, 病歷號, 姓名, 性別, 出生日期, 年齡, 動向, 掛號時間, ...]
-    var hasBed = /^[A-Za-z]\d/.test(c[3]);  // 床位格式如 H02, B06A
+    var hasBed = /^[A-Za-z]{1,2}\d{2,3}[A-Za-z]?$/.test(c[3]);  // 床位格式如 H02, B06A, B10A
 
     var triage  = c[2] || '';
     var bed     = hasBed ? c[3] : '';
