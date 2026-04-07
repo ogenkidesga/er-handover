@@ -932,81 +932,101 @@ function clearAll() {
 // ══════════════════════════════════════════════
 // Print
 // ══════════════════════════════════════════════
-function exportToSheets(landscape) {
+function exportToSheets() {
+  if (!API_URL) { alert('尚未設定 API 網址'); return; }
   if (!patients.length) { alert('目前沒有資料'); return; }
+
+  var btn = document.getElementById('btn-export');
+  btn.disabled = true;
 
   var list     = getSorted();
   var dirLabel = { adm:'Admission', con:'等照會', obs:'留觀' };
   var cpLabel  = curCampus==='dl'?'斗六院區':curCampus==='hw'?'虎尾院區':'全院區';
   var title    = '急診交班單 — ' + cpLabel;
-  var now      = new Date().toLocaleString('zh-TW');
-  var orient   = landscape ? 'landscape' : 'portrait';
-  var fs       = landscape ? '9.5px' : '9px';
 
-  var newWin = window.open('', '_blank');
-  if (!newWin) { alert('請允許彈出視窗'); return; }
-
-  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8">';
-  html += '<title>' + title + '</title>';
-  html += '<style id="page-style">';
-  html += '@page{size:A4 ' + orient + ';margin:10mm}';
-  html += 'body{font-family:Arial,sans-serif;font-size:' + fs + ';margin:0}';
-  html += 'h2{font-size:13px;margin-bottom:2px}';
-  html += 'p{font-size:10px;color:#666;margin-bottom:8px}';
-  html += 'table{width:100%;border-collapse:collapse;table-layout:fixed}';
-  html += 'th{background:#f0f0f0;font-weight:600;padding:4px 5px;border:0.5px solid #aaa;text-align:left;font-size:9px}';
-  html += 'td{padding:4px 5px;border:0.5px solid #ccc;vertical-align:top;word-wrap:break-word;font-size:' + fs + '}';
-  html += 'tr:nth-child(even) td{background:#fafafa}';
-  html += '.t1{color:#b91c1c;font-weight:700}.t2{color:#d97706;font-weight:700}.t3{color:#4a7c2f;font-weight:700}';
-  html += '@media print{.no-print{display:none}}';
-  html += '</style></head><body>';
-
-  html += '<div class="no-print" style="margin-bottom:12px;display:flex;align-items:center;gap:8px;padding:10px">';
-  html += '<button onclick="window.print()" style="padding:6px 16px;font-size:12px;cursor:pointer;background:#1a56b0;color:white;border:none;border-radius:4px">列印</button>';
-
-  html += '<button onclick="window.close()" style="padding:6px 16px;font-size:12px;cursor:pointer;border:1px solid #ccc;border-radius:4px;background:white">關閉</button>';
-
-  html += '</div>';
-
-  html += '<div style="padding:0 10px">';
-  html += '<h2>' + title + '</h2>';
-  html += '<p>' + now + '　共 ' + list.length + ' 位病人</p>';
-  html += '</div>';
-
-  html += '<table><thead><tr>';
-  ['檢','床位','病歷號','姓名','歲','掛號時間','診斷','動向','注意事項'].forEach(function(h){
-    html += '<th>' + h + '</th>';
-  });
-  html += '</tr></thead><tbody>';
-
-  list.forEach(function(p, i) {
+  var rows = list.map(function(p) {
     var dxStr = p.dx.join(', ') + (p.dxCustom ? (p.dx.length?', ':'')+p.dxCustom : '');
-    var tc = p.triage==='1'?'t1':p.triage==='2'?'t2':'t3';
-    html += '<tr>';
-    html += '<td class="' + tc + '">' + (p.triage||'') + '</td>';
-    html += '<td>' + (p.bed||'') + '</td>';
-    html += '<td>' + p.pid + '</td>';
-    html += '<td>' + p.name + '</td>';
-    html += '<td>' + (p.age||'') + '</td>';
-    html += '<td style="white-space:nowrap">' + (p.regDate||'') + '</td>';
-    html += '<td>' + dxStr + '</td>';
-    html += '<td>' + (dirLabel[p.direction]||'') + '</td>';
-    html += '<td>' + (p.note||'').replace(/\n/g,'<br>') + '</td>';
-    html += '</tr>';
+    return {
+      triage:    p.triage    || '',
+      bed:       p.bed       || '',
+      pid:       p.pid       || '',
+      name:      p.name      || '',
+      age:       p.age       || '',
+      regDate:   p.regDate   || '',
+      dx:        dxStr,
+      direction: dirLabel[p.direction] || '',
+      note:      p.note      || ''
+    };
   });
 
-  html += '</tbody></table>';
-  html += '<scr' + 'ipt>function switchMode(){ window.close(); }</' + 'script>';
-  html += '</body></html>';
+  // 分批傳送，每批 5 筆避免 URL 超長
+  var batchSize = 5;
+  var batches = [];
+  for (var i = 0; i < rows.length; i += batchSize) {
+    batches.push(rows.slice(i, i + batchSize));
+  }
+  var total = rows.length;
 
-  newWin.document.write(html);
-  newWin.document.close();
+  // 先開視窗（必須在點擊事件內同步執行）
+  var newWin = window.open('', '_blank');
+  if (newWin) newWin.document.write('<p style="font-family:sans-serif;padding:2rem;font-size:14px">匯出中，請稍候...</p>');
 
-  // 切換模式：關掉舊視窗後開新視窗
-  newWin.switchMode = function() {
-    newWin.close();
-    exportToSheets(!landscape);
-  };
+  // 第一步：清空並初始化列印工作表
+  var initUrl = API_URL + '?action=exportInit'
+    + '&title=' + encodeURIComponent(title)
+    + '&total=' + total;
+
+  btn.textContent = '準備中...';
+
+  jsonp(initUrl, function(err, data) {
+    if (err || !data.ok) {
+      btn.textContent = '匯出到 Sheets 列印';
+      btn.disabled = false;
+      if (newWin) newWin.close();
+      alert('匯出失敗');
+      return;
+    }
+    // 依序傳送每一批
+    sendBatch(batches, 0, data.gid, newWin, btn, total);
+  });
+}
+
+function sendBatch(batches, idx, gid, newWin, btn, total) {
+  if (idx >= batches.length) {
+    // 全部傳完，呼叫完成
+    var doneUrl = API_URL + '?action=exportDone&gid=' + gid;
+    btn.textContent = '開啟中...';
+    jsonp(doneUrl, function(err, data) {
+      btn.textContent = '匯出到 Sheets 列印';
+      btn.disabled = false;
+      if (!err && data.ok && data.url) {
+        if (newWin) newWin.location.href = data.url;
+      } else {
+        if (newWin) newWin.close();
+        alert('匯出失敗');
+      }
+    });
+    return;
+  }
+
+  var sent = idx * 5;
+  btn.textContent = '傳送中 ' + Math.min(sent + 5, total) + '/' + total + '...';
+
+  var url = API_URL + '?action=exportBatch'
+    + '&gid=' + gid
+    + '&offset=' + (idx * 5)
+    + '&rows=' + encodeURIComponent(JSON.stringify(batches[idx]));
+
+  jsonp(url, function(err, data) {
+    if (err || !data.ok) {
+      btn.textContent = '匯出到 Sheets 列印';
+      btn.disabled = false;
+      if (newWin) newWin.close();
+      alert('匯出失敗');
+      return;
+    }
+    sendBatch(batches, idx + 1, gid, newWin, btn, total);
+  });
 }
 
 // ══════════════════════════════════════════════
