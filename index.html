@@ -620,7 +620,7 @@ function parseHIS(txt) {
 
     // 有床位：c = [#, 科別, 檢傷, 床位, 病歷號, 姓名, 性別, 出生日期, 年齡, 動向, 掛號時間, ...]
     // 無床位：c = [#, 科別, 檢傷, 病歷號, 姓名, 性別, 出生日期, 年齡, 動向, 掛號時間, ...]
-    var hasBed = /^[A-Za-z]{1,2}\d{2,3}[A-Za-z]?$/.test(c[3]);  // 床位格式如 H02, B06A, B10A
+    var hasBed = c[3] && c[3].length <= 5 && /^[A-Za-z]{1,3}\d{0,3}[A-Za-z]?$/.test(c[3]) && !/^[A-Za-z]{1,2}\d{5,}/.test(c[3]);  // 床位如 H02, B06A, HIR
 
     var triage  = c[2] || '';
     var bed     = hasBed ? c[3] : '';
@@ -933,56 +933,68 @@ function clearAll() {
 // Print
 // ══════════════════════════════════════════════
 function exportToSheets() {
-  if (!API_URL) { alert('尚未設定 API 網址'); return; }
   if (!patients.length) { alert('目前沒有資料'); return; }
-
-  var btn = document.getElementById('btn-export');
-  btn.textContent = '匯出中...';
-  btn.disabled = true;
 
   var list     = getSorted();
   var dirLabel = { adm:'Admission', con:'等照會', obs:'留觀' };
   var cpLabel  = curCampus==='dl'?'斗六院區':curCampus==='hw'?'虎尾院區':'全院區';
   var title    = '急診交班單 — ' + cpLabel;
+  var now      = new Date().toLocaleString('zh-TW');
 
-  var rows = list.map(function(p) {
-    var dxStr = p.dx.join(', ') + (p.dxCustom ? (p.dx.length?', ':'')+p.dxCustom : '');
-    return {
-      triage:    p.triage    || '',
-      bed:       p.bed       || '',
-      pid:       p.pid       || '',
-      name:      p.name      || '',
-      age:       p.age       || '',
-      regDate:   p.regDate   || '',
-      dx:        dxStr,
-      direction: dirLabel[p.direction] || '',
-      note:      p.note      || ''
-    };
-  });
-
-  var url = API_URL
-    + '?action=exportPrint'
-    + '&title='  + encodeURIComponent(title)
-    + '&rows='   + encodeURIComponent(JSON.stringify(rows));
-
-  // 先開視窗（必須在使用者點擊事件內同步執行，否則被瀏覽器封鎖）
+  // 直接在新視窗產生可列印的 HTML，不經過 Apps Script
   var newWin = window.open('', '_blank');
-  if (newWin) newWin.document.write('<p style="font-family:sans-serif;padding:2rem">匯出中，請稍候...</p>');
+  if (!newWin) { alert('請允許彈出視窗'); return; }
 
-  jsonp(url, function(err, data) {
-    btn.textContent = '匯出到 Sheets 列印';
-    btn.disabled = false;
-    if (!err && data.ok && data.url) {
-      if (newWin) {
-        newWin.location.href = data.url;
-      } else {
-        alert('請允許彈出視窗，或手動前往：\n' + data.url);
-      }
-    } else {
-      if (newWin) newWin.close();
-      alert('匯出失敗，請確認 API 網址是否正確');
-    }
+  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8">';
+  html += '<title>' + title + '</title>';
+  html += '<style>';
+  html += 'body{font-family:Arial,sans-serif;font-size:10px;margin:10mm}';
+  html += 'h2{font-size:13px;margin-bottom:2px}';
+  html += 'p{font-size:10px;color:#666;margin-bottom:8px}';
+  html += 'table{width:100%;border-collapse:collapse;table-layout:fixed}';
+  html += 'th{background:#f0f0f0;font-weight:600;padding:4px 5px;border:0.5px solid #aaa;text-align:left;font-size:9px}';
+  html += 'td{padding:4px 5px;border:0.5px solid #ccc;vertical-align:top;word-wrap:break-word;font-size:9.5px}';
+  html += 'tr:nth-child(even) td{background:#fafafa}';
+  html += '.t1{color:#b91c1c;font-weight:700}';
+  html += '.t2{color:#d97706;font-weight:700}';
+  html += '.t3{color:#4a7c2f;font-weight:700}';
+  html += '@page{size:A4 portrait;margin:10mm}';
+  html += '@media print{.no-print{display:none}}';
+  html += '</style></head><body>';
+
+  html += '<div class="no-print" style="margin-bottom:12px">';
+  html += '<button onclick="window.print()" style="padding:6px 16px;font-size:12px;cursor:pointer;background:#1a56b0;color:white;border:none;border-radius:4px">列印</button>';
+  html += '&nbsp;<button onclick="window.close()" style="padding:6px 16px;font-size:12px;cursor:pointer">關閉</button>';
+  html += '</div>';
+
+  html += '<h2>' + title + '</h2>';
+  html += '<p>' + now + '　共 ' + list.length + ' 位病人</p>';
+  html += '<table><thead><tr>';
+  ['#','檢','床位','病歷號','姓名','歲','掛號時間','診斷','動向','注意事項'].forEach(function(h){
+    html += '<th>' + h + '</th>';
   });
+  html += '</tr></thead><tbody>';
+
+  list.forEach(function(p, i) {
+    var dxStr = p.dx.join(', ') + (p.dxCustom ? (p.dx.length?', ':'')+p.dxCustom : '');
+    var tc = p.triage==='1'?'t1':p.triage==='2'?'t2':'t3';
+    html += '<tr>';
+    html += '<td>' + (i+1) + '</td>';
+    html += '<td class="' + tc + '">' + (p.triage||'') + '</td>';
+    html += '<td>' + (p.bed||'') + '</td>';
+    html += '<td>' + p.pid + '</td>';
+    html += '<td>' + p.name + '</td>';
+    html += '<td>' + (p.age||'') + '</td>';
+    html += '<td style="white-space:nowrap">' + (p.regDate||'') + '</td>';
+    html += '<td>' + dxStr + '</td>';
+    html += '<td>' + (dirLabel[p.direction]||'') + '</td>';
+    html += '<td>' + (p.note||'').replace(/\n/g,'<br>') + '</td>';
+    html += '</tr>';
+  });
+
+  html += '</tbody></table></body></html>';
+  newWin.document.write(html);
+  newWin.document.close();
 }
 
 // ══════════════════════════════════════════════
