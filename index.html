@@ -459,7 +459,7 @@ tr:hover td { background: #fafaf8; }
 
   <div class="toolbar">
     <button class="btn btn-primary" onclick="openImport()">貼上 HIS 資料</button>
-    <button class="btn" onclick="exportToSheets()" id="btn-export">匯出到 Sheets 列印</button>
+    <button class="btn" onclick="exportToSheets()" id="btn-export">匯出到 Sheets 列印</button><span style="font-size:11px;color:var(--hint);margin-left:4px">病人數多時需稍候</span>
     <button class="btn btn-ghost" onclick="reloadFromSheets()" title="從 Google Sheets 重新載入">↻ 重新整理</button>
     <button class="btn btn-danger" onclick="clearAll()">清除全部</button>
     <span id="last-sync" style="font-size:11px;color:var(--hint);margin-left:4px"></span>
@@ -963,13 +963,9 @@ function exportToSheets(landscape) {
 
   html += '<div class="no-print" style="margin-bottom:12px;display:flex;align-items:center;gap:8px;padding:10px">';
   html += '<button onclick="window.print()" style="padding:6px 16px;font-size:12px;cursor:pointer;background:#1a56b0;color:white;border:none;border-radius:4px">列印</button>';
-  if (landscape) {
-    html += '<button onclick="switchMode()" style="padding:6px 16px;font-size:12px;cursor:pointer;border:1px solid #ccc;border-radius:4px;background:white">切換直式</button>';
-  } else {
-    html += '<button onclick="switchMode()" style="padding:6px 16px;font-size:12px;cursor:pointer;border:1px solid #ccc;border-radius:4px;background:white">切換橫式</button>';
-  }
+
   html += '<button onclick="window.close()" style="padding:6px 16px;font-size:12px;cursor:pointer;border:1px solid #ccc;border-radius:4px;background:white">關閉</button>';
-  html += '<span style="font-size:11px;color:#999">目前：' + (landscape?'橫式':'直式') + '</span>';
+
   html += '</div>';
 
   html += '<div style="padding:0 10px">';
@@ -978,7 +974,7 @@ function exportToSheets(landscape) {
   html += '</div>';
 
   html += '<table><thead><tr>';
-  ['#','檢','床位','病歷號','姓名','歲','掛號時間','診斷','動向','注意事項'].forEach(function(h){
+  ['檢','床位','病歷號','姓名','歲','掛號時間','診斷','動向','注意事項'].forEach(function(h){
     html += '<th>' + h + '</th>';
   });
   html += '</tr></thead><tbody>';
@@ -987,7 +983,6 @@ function exportToSheets(landscape) {
     var dxStr = p.dx.join(', ') + (p.dxCustom ? (p.dx.length?', ':'')+p.dxCustom : '');
     var tc = p.triage==='1'?'t1':p.triage==='2'?'t2':'t3';
     html += '<tr>';
-    html += '<td>' + (i+1) + '</td>';
     html += '<td class="' + tc + '">' + (p.triage||'') + '</td>';
     html += '<td>' + (p.bed||'') + '</td>';
     html += '<td>' + p.pid + '</td>';
