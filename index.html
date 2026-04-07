@@ -959,12 +959,14 @@ function exportToSheets() {
   html += '.t2{color:#d97706;font-weight:700}';
   html += '.t3{color:#4a7c2f;font-weight:700}';
   html += '@page{size:A4 portrait;margin:10mm}';
+  html += '.landscape @page{size:A4 landscape;margin:10mm}';
   html += '@media print{.no-print{display:none}}';
   html += '</style></head><body>';
 
-  html += '<div class="no-print" style="margin-bottom:12px">';
+  html += '<div class="no-print" style="margin-bottom:12px;display:flex;align-items:center;gap:8px">';
   html += '<button onclick="window.print()" style="padding:6px 16px;font-size:12px;cursor:pointer;background:#1a56b0;color:white;border:none;border-radius:4px">列印</button>';
-  html += '&nbsp;<button onclick="window.close()" style="padding:6px 16px;font-size:12px;cursor:pointer">關閉</button>';
+  html += '<button onclick="toggleOrientation()" id="ori-btn" style="padding:6px 16px;font-size:12px;cursor:pointer;border:1px solid #ccc;border-radius:4px;background:white">切換橫式</button>';
+  html += '<button onclick="window.close()" style="padding:6px 16px;font-size:12px;cursor:pointer;border:1px solid #ccc;border-radius:4px;background:white">關閉</button>';
   html += '</div>';
 
   html += '<h2>' + title + '</h2>';
@@ -992,7 +994,24 @@ function exportToSheets() {
     html += '</tr>';
   });
 
-  html += '</tbody></table></body></html>';
+  html += '</tbody></table>';
+  html += '<script>';
+  html += 'var isLandscape = false;';
+  html += 'function toggleOrientation() {';
+  html += '  isLandscape = !isLandscape;';
+  html += '  var btn = document.getElementById(\'ori-btn\');';
+  html += '  if (isLandscape) {';
+  html += '    document.body.classList.add(\'landscape\');';
+  html += '    btn.textContent = \'切換直式\';';
+  html += '    btn.style.background = \'#e8f0fb\';';
+  html += '  } else {';
+  html += '    document.body.classList.remove(\'landscape\');';
+  html += '    btn.textContent = \'切換橫式\';';
+  html += '    btn.style.background = \'white\';';
+  html += '  }';
+  html += '}';
+  html += '</scr' + 'ipt>';
+  html += '</body></html>';
   newWin.document.write(html);
   newWin.document.close();
 }
