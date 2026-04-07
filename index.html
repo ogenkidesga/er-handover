@@ -932,7 +932,7 @@ function clearAll() {
 // ══════════════════════════════════════════════
 // Print
 // ══════════════════════════════════════════════
-function exportToSheets() {
+function exportToSheets(landscape) {
   if (!patients.length) { alert('目前沒有資料'); return; }
 
   var list     = getSorted();
@@ -940,36 +940,43 @@ function exportToSheets() {
   var cpLabel  = curCampus==='dl'?'斗六院區':curCampus==='hw'?'虎尾院區':'全院區';
   var title    = '急診交班單 — ' + cpLabel;
   var now      = new Date().toLocaleString('zh-TW');
+  var orient   = landscape ? 'landscape' : 'portrait';
+  var fs       = landscape ? '9.5px' : '9px';
 
-  // 直接在新視窗產生可列印的 HTML，不經過 Apps Script
   var newWin = window.open('', '_blank');
   if (!newWin) { alert('請允許彈出視窗'); return; }
 
   var html = '<!DOCTYPE html><html><head><meta charset="UTF-8">';
   html += '<title>' + title + '</title>';
   html += '<style id="page-style">';
-  html += 'body{font-family:Arial,sans-serif;font-size:10px;margin:10mm}';
+  html += '@page{size:A4 ' + orient + ';margin:10mm}';
+  html += 'body{font-family:Arial,sans-serif;font-size:' + fs + ';margin:0}';
   html += 'h2{font-size:13px;margin-bottom:2px}';
   html += 'p{font-size:10px;color:#666;margin-bottom:8px}';
   html += 'table{width:100%;border-collapse:collapse;table-layout:fixed}';
   html += 'th{background:#f0f0f0;font-weight:600;padding:4px 5px;border:0.5px solid #aaa;text-align:left;font-size:9px}';
-  html += 'td{padding:4px 5px;border:0.5px solid #ccc;vertical-align:top;word-wrap:break-word;font-size:9.5px}';
+  html += 'td{padding:4px 5px;border:0.5px solid #ccc;vertical-align:top;word-wrap:break-word;font-size:' + fs + '}';
   html += 'tr:nth-child(even) td{background:#fafafa}';
-  html += '.t1{color:#b91c1c;font-weight:700}';
-  html += '.t2{color:#d97706;font-weight:700}';
-  html += '.t3{color:#4a7c2f;font-weight:700}';
-  html += '@page{size:A4 portrait;margin:10mm}';
+  html += '.t1{color:#b91c1c;font-weight:700}.t2{color:#d97706;font-weight:700}.t3{color:#4a7c2f;font-weight:700}';
   html += '@media print{.no-print{display:none}}';
   html += '</style></head><body>';
 
-  html += '<div class="no-print" style="margin-bottom:12px;display:flex;align-items:center;gap:8px">';
+  html += '<div class="no-print" style="margin-bottom:12px;display:flex;align-items:center;gap:8px;padding:10px">';
   html += '<button onclick="window.print()" style="padding:6px 16px;font-size:12px;cursor:pointer;background:#1a56b0;color:white;border:none;border-radius:4px">列印</button>';
-  html += '<button onclick="toggleOrientation()" id="ori-btn" style="padding:6px 16px;font-size:12px;cursor:pointer;border:1px solid #ccc;border-radius:4px;background:white">切換橫式</button>';
+  if (landscape) {
+    html += '<button onclick="switchMode()" style="padding:6px 16px;font-size:12px;cursor:pointer;border:1px solid #ccc;border-radius:4px;background:white">切換直式</button>';
+  } else {
+    html += '<button onclick="switchMode()" style="padding:6px 16px;font-size:12px;cursor:pointer;border:1px solid #ccc;border-radius:4px;background:white">切換橫式</button>';
+  }
   html += '<button onclick="window.close()" style="padding:6px 16px;font-size:12px;cursor:pointer;border:1px solid #ccc;border-radius:4px;background:white">關閉</button>';
+  html += '<span style="font-size:11px;color:#999">目前：' + (landscape?'橫式':'直式') + '</span>';
   html += '</div>';
 
+  html += '<div style="padding:0 10px">';
   html += '<h2>' + title + '</h2>';
   html += '<p>' + now + '　共 ' + list.length + ' 位病人</p>';
+  html += '</div>';
+
   html += '<table><thead><tr>';
   ['#','檢','床位','病歷號','姓名','歲','掛號時間','診斷','動向','注意事項'].forEach(function(h){
     html += '<th>' + h + '</th>';
@@ -994,26 +1001,17 @@ function exportToSheets() {
   });
 
   html += '</tbody></table>';
-  html += '<script>';
-  html += 'var isLandscape = false;';
-  html += 'function toggleOrientation() {';
-  html += '  isLandscape = !isLandscape;';
-  html += '  var btn = document.getElementById(\'ori-btn\');';
-  html += '  var style = document.getElementById(\'page-style\');';
-  html += '  if (isLandscape) {';
-  html += '    style.textContent = \'@page{size:A4 landscape;margin:10mm}\';';
-  html += '    btn.textContent = \'切換直式\';';
-  html += '    btn.style.background = \'#e8f0fb\';';
-  html += '  } else {';
-  html += '    style.textContent = \'@page{size:A4 portrait;margin:10mm}\';';
-  html += '    btn.textContent = \'切換橫式\';';
-  html += '    btn.style.background = \'white\';';
-  html += '  }';
-  html += '}';
-  html += '</scr' + 'ipt>';
+  html += '<scr' + 'ipt>function switchMode(){ window.close(); }</' + 'script>';
   html += '</body></html>';
+
   newWin.document.write(html);
   newWin.document.close();
+
+  // 切換模式：關掉舊視窗後開新視窗
+  newWin.switchMode = function() {
+    newWin.close();
+    exportToSheets(!landscape);
+  };
 }
 
 // ══════════════════════════════════════════════
