@@ -947,7 +947,7 @@ function exportToSheets() {
 
   var html = '<!DOCTYPE html><html><head><meta charset="UTF-8">';
   html += '<title>' + title + '</title>';
-  html += '<style>';
+  html += '<style id="page-style">';
   html += 'body{font-family:Arial,sans-serif;font-size:10px;margin:10mm}';
   html += 'h2{font-size:13px;margin-bottom:2px}';
   html += 'p{font-size:10px;color:#666;margin-bottom:8px}';
@@ -959,7 +959,6 @@ function exportToSheets() {
   html += '.t2{color:#d97706;font-weight:700}';
   html += '.t3{color:#4a7c2f;font-weight:700}';
   html += '@page{size:A4 portrait;margin:10mm}';
-  html += '.landscape @page{size:A4 landscape;margin:10mm}';
   html += '@media print{.no-print{display:none}}';
   html += '</style></head><body>';
 
@@ -1000,12 +999,13 @@ function exportToSheets() {
   html += 'function toggleOrientation() {';
   html += '  isLandscape = !isLandscape;';
   html += '  var btn = document.getElementById(\'ori-btn\');';
+  html += '  var style = document.getElementById(\'page-style\');';
   html += '  if (isLandscape) {';
-  html += '    document.body.classList.add(\'landscape\');';
+  html += '    style.textContent = \'@page{size:A4 landscape;margin:10mm}\';';
   html += '    btn.textContent = \'切換直式\';';
   html += '    btn.style.background = \'#e8f0fb\';';
   html += '  } else {';
-  html += '    document.body.classList.remove(\'landscape\');';
+  html += '    style.textContent = \'@page{size:A4 portrait;margin:10mm}\';';
   html += '    btn.textContent = \'切換橫式\';';
   html += '    btn.style.background = \'white\';';
   html += '  }';
